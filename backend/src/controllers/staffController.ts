@@ -51,12 +51,9 @@ export const addStaff = async (req: Request, res: Response): Promise<void> => {
       return;
     }
 
-    const salt = await bcrypt.genSalt(10);
-    const hashedPassword = await bcrypt.hash(password, salt);
-
     const { data, error } = await supabase
       .from('users')
-      .insert([{ name, email, password: hashedPassword, role: 'Staff', restaurant_id }])
+      .insert([{ name, email, role: 'Staff', restaurant_id }])
       .select('id, name, email, xp, level, streak, created_at')
       .single();
 

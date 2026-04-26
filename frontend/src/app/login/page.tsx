@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
+import { BrainCircuit, Lock, Mail, ChevronRight, Sparkles, Loader2 } from "lucide-react";
 
 export default function Login() {
   const [email, setEmail] = useState("");
@@ -17,7 +18,6 @@ export default function Login() {
     setError("");
 
     try {
-      // Use Supabase Auth instead of manual backend fetch
       const { data, error: authError } = await supabase.auth.signInWithPassword({
         email,
         password,
@@ -25,18 +25,15 @@ export default function Login() {
 
       if (authError) throw authError;
 
-      // Get user metadata from the session
       const userMetadata = data.user?.user_metadata;
       
       if (!userMetadata) {
         throw new Error("User profile not found. Please contact support.");
       }
 
-      // Store JWT in cookie for Next.js middleware to read (Supabase also handles this, but we keep it for consistency)
       const token = data.session?.access_token;
       document.cookie = `token=${token}; path=/; max-age=86400; SameSite=Strict`;
       
-      // Store user info in localStorage for client components
       const userProfile = {
         id: data.user?.id,
         email: data.user?.email,
@@ -47,7 +44,6 @@ export default function Login() {
       
       localStorage.setItem("user", JSON.stringify(userProfile));
 
-      // Redirect based on role
       if (userMetadata.role === "Admin") {
         router.push("/admin/dashboard");
       } else {
@@ -61,65 +57,106 @@ export default function Login() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-indigo-900 via-purple-900 to-black p-4">
-      <div className="w-full max-w-md backdrop-blur-xl bg-white/10 p-8 rounded-2xl shadow-2xl border border-white/20 transition-all hover:scale-[1.01] duration-300">
-        <h2 className="text-3xl font-bold text-white text-center mb-6 tracking-tight">
-          Welcome to Nexinbe
-        </h2>
+    <div className="min-h-screen flex items-center justify-center bg-[#060608] relative overflow-hidden font-sans">
+      {/* Premium Background Effects */}
+      <div className="absolute inset-0 pointer-events-none opacity-20">
+         <div className="absolute top-[-10%] left-[-10%] w-[60%] h-[60%] bg-primary blur-[150px] rounded-full animate-pulse" />
+         <div className="absolute bottom-[-10%] right-[-10%] w-[60%] h-[60%] bg-secondary blur-[150px] rounded-full opacity-50" />
+      </div>
+      
+      <div className="relative z-10 w-full max-w-xl p-4">
+        {/* Logo Section */}
+        <div className="flex flex-col items-center mb-12 animate-in fade-in slide-in-from-top-10 duration-1000">
+          <div className="w-20 h-20 bg-gradient-to-tr from-primary to-secondary rounded-[2.5rem] flex items-center justify-center shadow-[0_20px_50px_rgba(139,92,246,0.3)] mb-6 animate-float-premium border border-white/20">
+             <BrainCircuit size={40} className="text-white" />
+          </div>
+          <h1 className="text-4xl font-black text-white tracking-tighter text-gradient">Nexinbe</h1>
+          <p className="text-[10px] text-primary font-black tracking-[0.4em] uppercase mt-3">Intelligence Hub</p>
+        </div>
+
+        {/* Login Card */}
+        <div className="glass-card p-12 bg-white/[0.02] border-white/10 shadow-[0_40px_80px_-20px_rgba(0,0,0,0.8)] animate-in zoom-in-95 duration-700">
+          <div className="mb-10 text-center">
+             <h2 className="text-2xl font-black text-white mb-2">Welcome Back</h2>
+             <p className="text-gray-500 text-sm font-medium">Access your training intelligence portal</p>
+          </div>
+          
+          {error && (
+            <div className="p-4 rounded-2xl bg-red-500/10 border border-red-500/20 text-red-400 text-xs mb-8 flex items-center gap-3 animate-in fade-in zoom-in">
+              <div className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse" />
+              {error}
+            </div>
+          )}
+
+          <form onSubmit={handleLogin} className="space-y-8">
+            <div className="space-y-3">
+              <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest ml-1">Email System</label>
+              <div className="relative group">
+                <div className="absolute left-6 top-1/2 -translate-y-1/2 text-gray-600 group-focus-within:text-primary transition-colors">
+                  <Mail size={20} />
+                </div>
+                <input
+                  type="email"
+                  required
+                  className="w-full bg-black/40 border border-white/10 rounded-[1.5rem] pl-16 pr-6 py-5 text-white placeholder-gray-700 focus:border-primary/50 transition-all outline-none"
+                  placeholder="name@restaurant.com"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                />
+              </div>
+            </div>
+
+            <div className="space-y-3">
+              <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest ml-1">Security Key</label>
+              <div className="relative group">
+                <div className="absolute left-6 top-1/2 -translate-y-1/2 text-gray-600 group-focus-within:text-primary transition-colors">
+                  <Lock size={20} />
+                </div>
+                <input
+                  type="password"
+                  required
+                  className="w-full bg-black/40 border border-white/10 rounded-[1.5rem] pl-16 pr-6 py-5 text-white placeholder-gray-700 focus:border-primary/50 transition-all outline-none"
+                  placeholder="••••••••"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                />
+              </div>
+            </div>
+
+            <button
+              type="submit"
+              disabled={loading}
+              className="w-full py-5 bg-white text-black font-black text-xl rounded-[1.5rem] shadow-[0_20px_40px_-10px_rgba(255,255,255,0.2)] hover:scale-[1.02] active:scale-95 transition-all flex justify-center items-center gap-3 group"
+            >
+              {loading ? (
+                <Loader2 className="animate-spin text-black" size={24} />
+              ) : (
+                <>
+                  Connect Neural Link
+                  <ChevronRight size={20} className="group-hover:translate-x-1 transition-transform" />
+                </>
+              )}
+            </button>
+          </form>
+
+          <div className="mt-12 pt-10 border-t border-white/5 text-center">
+            <p className="text-gray-500 text-sm font-medium">
+              New to the platform?{" "}
+              <span 
+                onClick={() => router.push('/signup')} 
+                className="text-primary hover:text-white cursor-pointer transition-colors font-black"
+              >
+                Create Hub
+              </span>
+            </p>
+          </div>
+        </div>
         
-        {error && (
-          <div className="bg-red-500/20 border border-red-500/50 text-red-200 p-3 rounded-lg mb-6 text-sm text-center animate-pulse">
-            {error}
-          </div>
-        )}
-
-        <form onSubmit={handleLogin} className="space-y-6">
-          <div>
-            <label className="block text-sm font-medium text-purple-200 mb-2">Email Address</label>
-            <input
-              type="email"
-              required
-              className="w-full px-4 py-3 rounded-lg bg-black/40 border border-purple-500/30 text-white placeholder-purple-300/50 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition flex-1"
-              placeholder="admin@nexinbe.com"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-            />
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-purple-200 mb-2">Password</label>
-            <input
-              type="password"
-              required
-              className="w-full px-4 py-3 rounded-lg bg-black/40 border border-purple-500/30 text-white placeholder-purple-300/50 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition flex-1"
-              placeholder="••••••••"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-            />
-          </div>
-
-          <button
-            type="submit"
-            disabled={loading}
-            className="w-full py-3 px-4 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white rounded-lg font-medium shadow-lg hover:shadow-purple-500/30 transition-all active:scale-95 flex justify-center items-center"
-          >
-            {loading ? (
-              <span className="animate-spin h-5 w-5 border-2 border-white/20 border-t-white rounded-full"></span>
-            ) : (
-              "Sign In"
-            )}
-          </button>
-        </form>
-
-        <p className="mt-8 text-center text-purple-200/60 text-sm">
-          Don't have an account?{" "}
-          <span 
-            onClick={() => router.push('/signup')} 
-            className="text-purple-400 hover:text-white cursor-pointer transition"
-          >
-            Create one
-          </span>
-        </p>
+        {/* Footer info */}
+        <div className="mt-12 flex justify-center gap-10 opacity-30 text-[10px] font-black text-gray-400 uppercase tracking-[0.2em]">
+           <span>Secured by Supabase</span>
+           <span>v2.0 Premium</span>
+        </div>
       </div>
     </div>
   );

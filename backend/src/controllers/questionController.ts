@@ -15,7 +15,7 @@ export const generateQuestions = async (req: any, res: Response): Promise<void> 
     }
 
     // 1. Generate embedding for the topic
-    const embeddingModel = genAI.getGenerativeModel({ model: "text-embedding-004" });
+    const embeddingModel = genAI.getGenerativeModel({ model: "gemini-embedding-001" });
     const embeddingResult = await embeddingModel.embedContent(topic);
     const queryEmbedding = embeddingResult.embedding.values;
 
@@ -54,7 +54,7 @@ Return a raw JSON array. DO NOT wrap it in markdown code blocks like \`\`\`json.
 }`;
 
     // 4. Generate questions using gemini-1.5-flash
-    const generationModel = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+    const generationModel = genAI.getGenerativeModel({ model: "gemini-2.0-flash" });
     const response = await generationModel.generateContent(prompt);
     const responseText = response.response.text();
     

@@ -1,5 +1,7 @@
 import { Request, Response, NextFunction } from 'express';
-import { supabase } from '../config/supabase';
+import jwt from 'jsonwebtoken';
+
+const JWT_SECRET = process.env.JWT_SECRET || 'your_super_secret_jwt_key_here';
 
 export interface AuthRequest extends Request {
   user?: {
@@ -20,25 +22,28 @@ export const authMiddleware = async (req: AuthRequest, res: Response, next: Next
   const token = authHeader.split(' ')[1];
 
   try {
-    // Verify the token with Supabase
-    const { data: { user }, error } = await supabase.auth.getUser(token);
+    // Verify the custom JWT signed by authController
+    const decoded: any = jwt.verify(token, JWT_SECRET);
 
-    if (error || !user) {
+    if (!decoded) {
       return res.status(401).json({ error: 'Invalid or expired token' });
     }
 
-    // Attach user data to request
-    // Note: We get name/role/restaurant_id from user_metadata
+    // Attach user data to request from the JWT payload
     req.user = {
-      id: user.id,
-      email: user.email,
-      role: user.user_metadata.role,
-      restaurant_id: user.user_metadata.restaurant_id
+      id: decoded.id,
+      email: decoded.email,
+      role: decoded.role,
+      restaurant_id: decoded.restaurant_id
     };
 
     next();
-  } catch (err) {
-    console.error('Auth middleware error:', err);
-    res.status(500).json({ error: 'Server error during authentication' });
+  } catch (err: any) {
+    // If the token is old/Supabase format, jwt.verify will throw 'invalid algorithm' or similar
+    if (err.name === 'JsonWebTokenError' || err.name === 'TokenExpiredError') {
+      return res.status(401).json({ error: 'Your session has expired or is invalid. Please log out and log in again.' });
+    }
+    console.error('Auth middleware critical error:', err);
+    res.status(500).json({ error: 'Internal server error during authentication' });
   }
 };

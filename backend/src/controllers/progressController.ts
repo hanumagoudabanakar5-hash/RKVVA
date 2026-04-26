@@ -93,7 +93,12 @@ export const submitProgress = async (req: any, res: Response): Promise<void> => 
 // Returns the top 5 most-failed questions for a restaurant
 export const getWeakAreas = async (req: any, res: Response): Promise<void> => {
   try {
-    const restaurant_id = req.user?.restaurant_id;
+    let restaurant_id = req.params.restaurant_id;
+    
+    if (restaurant_id === 'current') {
+      restaurant_id = req.user?.restaurant_id;
+    }
+
     if (!restaurant_id) {
       res.status(400).json({ error: 'Missing restaurant_id' });
       return;

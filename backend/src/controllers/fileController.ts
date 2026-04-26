@@ -1,7 +1,6 @@
 import { Request, Response } from 'express';
 import { supabase } from '../config/supabase';
 import { GoogleGenerativeAI } from '@google/generative-ai';
-import pdfParse from 'pdf-parse';
 // @ts-ignore
 import mammoth from 'mammoth';
 
@@ -36,6 +35,11 @@ export const uploadFile = async (req: any, res: Response): Promise<void> => {
       return;
     }
 
+    if (req.user?.role !== 'Admin') {
+      res.status(403).json({ error: 'Access denied. Only administrators can upload training materials.' });
+      return;
+    }
+
     // 1. Upload File to Supabase Storage
     const fileName = `${Date.now()}-${file.originalname.replace(/[^a-zA-Z0-9.-]/g, '_')}`;
     const { data: storageData, error: storageError } = await supabase
@@ -46,21 +50,50 @@ export const uploadFile = async (req: any, res: Response): Promise<void> => {
       });
 
     if (storageError || !storageData) {
-      console.error("Storage Error:", storageError);
-      res.status(500).json({ error: 'Failed to upload to storage' });
+      console.error("Supabase Storage Error:", storageError);
+      res.status(500).json({ error: `Storage error: ${storageError?.message || "Unknown error"}` });
       return;
     }
 
     const { data: publicUrlData } = supabase.storage.from('restaurant-docs').getPublicUrl(storageData.path);
     const fileUrl = publicUrlData.publicUrl;
 
-    // 2. Extact Text
+    // 2. Extract Text
     let rawText = '';
     const extension = file.originalname.split('.').pop()?.toLowerCase();
 
     if (extension === 'pdf') {
-      const pdfData = await (pdfParse as any)(file.buffer);
-      rawText = pdfData.text;
+      try {
+        console.log(`[FileService] Processing PDF: ${file.originalname}`);
+        
+        const pdfLib = require('pdf-parse');
+        const PDFParseClass = pdfLib.PDFParse || pdfLib.default || pdfLib;
+        
+        let data;
+        // Check if it's the new class-based API
+        if (PDFParseClass.prototype && PDFParseClass.prototype.getText) {
+          const parser = new PDFParseClass(file.buffer);
+          data = await parser.getText();
+          // Clean up if the method exists
+          if (parser.destroy) await parser.destroy();
+        } else {
+          // Fallback to old function-style API
+          data = await (PDFParseClass as any)(file.buffer);
+        }
+
+        rawText = data.text;
+        
+        if (!rawText || rawText.trim().length === 0) {
+           console.warn("[FileService] PDF extraction returned empty text.");
+           rawText = "This PDF appears to be an image or scanned document. Text extraction was unsuccessful.";
+        } else {
+           console.log(`[FileService] Successfully extracted ${rawText.length} characters from PDF.`);
+        }
+      } catch (pdfError: any) {
+        console.error("[FileService] PDF Extraction Error:", pdfError);
+        res.status(500).json({ error: `Failed to process PDF content: ${pdfError.message}` });
+        return;
+      }
     } else if (extension === 'docx') {
       const docxData = await mammoth.extractRawText({ buffer: file.buffer });
       rawText = docxData.value;
@@ -95,7 +128,7 @@ export const uploadFile = async (req: any, res: Response): Promise<void> => {
     const textChunks = chunkText(rawText);
 
     // 5. Generate Embeddings & Store
-    const embeddingModel = genAI.getGenerativeModel({ model: "text-embedding-004" });
+    const embeddingModel = genAI.getGenerativeModel({ model: "gemini-embedding-001" });
     
     // Process in batches or parallel to generate embeddings
     const chunkRows = [];
